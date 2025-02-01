@@ -1,63 +1,54 @@
-name: CI/CD Pipeline for .NET Azure App Service
-
+name: Deploy ASP.NET MVC to Azure App Service
 on:
   push:
     branches:
-      - main  # Trigger the pipeline on push to the 'main' branch
+      - master  # Change to your main branch
   pull_request:
     branches:
-      - main  # Trigger the pipeline on pull requests targeting 'main'
-
+      - master
+ 
 jobs:
   build:
-    runs-on: windows-latest  # You can change this to 'windows-latest' if you're building on Windows
-
+    runs-on: windows-latest
+ 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0'  # Specify the .NET version you are using (adjust as needed)
-
-      - name: Restore dependencies
-        run: |
-          dotnet restore  # Restores NuGet packages
-
-      - name: Build the application
-        run: |
-          dotnet build --configuration Release  # Builds the application in Release mode
-
-      - name: Run tests
-        run: |
-          dotnet test  # Runs unit tests
-
-      - name: Publish the application
-        run: |
-          dotnet publish --configuration Release --output ./publish  # Publishes the app to a folder
-
+    - name: Checkout Code
+      uses: actions/checkout@v4
+ 
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'  # Change to your required .NET version
+ 
+    - name: Restore Dependencies
+      run: dotnet restore
+ 
+    - name: Build Solution
+      run: dotnet build --configuration Release --no-restore
+ 
+    - name: Publish Application
+      run: dotnet publish -c Release -o ./publish
+ 
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: published-app
+        path: ./publish
+ 
   deploy:
-    runs-on: ubuntu-latest  # You can change this to 'windows-latest' if you prefer
-
-    needs: build  # Ensure the 'build' job completes before deploying
-
+    runs-on: windows-latest
+    needs: build
+ 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}  # GitHub secret for Client ID
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}  # GitHub secret for Client Secret
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}  # GitHub secret for Tenant ID
-
-      - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ secrets.AZURE_APP_NAME }}  # App Service name (stored as GitHub secret)
-          slot-name: 'production'  # Or specify your deployment slot (optional)
-          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE}}  # GitHub secret for the publish profile (optional)
-          package: ./publish  # Path to the published application folder
-
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: published-app
+        path: ./publish
+ 
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'GitCiCd'  # Replace with your Azure App Service name
+        publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+        package: ./publish
